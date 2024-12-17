@@ -39,27 +39,33 @@
 
 => spin method:
     - wheels move in opposite direction when turning CW/CCW
-    - wheelse move in same direction when moving forward
+    - wheels move in same direction when moving forward
 
-// NOTE(anas):  this is very likely to change depending on what is constant and what isnt
-//              if the "tunnel width" is not constant, we can NOT divide the arena into cells
-//              so this algorithm would not work
 // NOTE(anas):  we can NOT use the right/left-hand hugging algorithm
 //              since the walls are not guaranteed to be simply-connected
 => algorithm:
-    - divide into cells (width and height known)
-    // TODO(anas): when does robot change cells?
-    - each cell has a "lifetime" variable
-    - each cell has a "bias" variable
-    // TODO(anas): when is a cell an intersection? (maybe all cells intersections?)
+    => arena is represented as intersections and paths
+        -> intersection:
+            - 4 paths (up, down, left, right, if exist)
+            - flags (fully explored, available paths, etc...)
+            - age
+        -> path:
+            - 2 intersections
+            // TODO(anas): unit of length?
+            - flags (explored/not, vertical/horizontal, dead ends, etc..)
+            - length
+            - width
+            // TODO(anas): is this even possible?
+            - bias
     => at intersection:
         - take the first unexplored path based on the bias variable
+        - move along unexplored path until new intersection is reached or dead end found
     => if dead end reached:
-        - find the nearest smallest lifetime cell with unexplored paths
-        - pathfind to the nearest cell (depth-first search?)
-        - when reached, take the next unexplored path
-    // TODO(anas): how to know when final cell reached?
-    // TODO(anas): what to do when final cell reached?
+        - find the nearest smallest age intersection with unexplored paths
+        - pathfind to the nearest intersection (depth-first search?)
+        - when intersection reached, take the next unexplored path
+    // TODO(anas): how to know when end is reached?
+    // TODO(anas): what to do when end is reached?
 
 => meetups:
     - saturdays [01:00 - **:**]
