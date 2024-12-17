@@ -1,0 +1,81 @@
+=> goal:
+    - traverse the arena
+    - get to the end
+    - dont hit walls as much as possible
+    - best time to win expo
+
+=> provided:
+    - width, height (of the whole arena)
+    - colour (of line)
+    // TODO(anas): find if width of the path constant
+    // TODO(anas): find what etc means
+    - etc... [*]
+=> not provided:
+    - arena layout
+    // TODO(anas): start and end points given?
+
+=> components:              | N |     | B |
+    - arduino mega 2560 R3  |   |     |   |
+    - breadboard mini 400   |   |     |   |
+    - ultrasonic HC-SR04    | 3 |     |   |
+    - ir sensors            |   | [*] |   |
+    - wheels 30-mm (d)      | 2 |     |   |
+    - battery 12v           |   |     |   |
+    - h-bridge              |   |     |   |
+    - dc motor              | 2 |     |   |
+    - wires                 |   |     |   |
+
+=> layout: [flat]
+    > BACK:
+        - 2 wheels
+        - ir sensor
+        - battery [*]
+    > MIDDLE:
+        // TODO(anas): decide the chasis material
+        - chasis made of __
+        - components inside
+    > FRONT:
+        - ultrasonic sensors
+
+=> spin method:
+    - wheels move in opposite direction when turning CW/CCW
+    - wheelse move in same direction when moving forward
+
+// NOTE(anas):  this is very likely to change depending on what is constant and what isnt
+//              if the "tunnel width" is not constant, we can NOT divide the arena into cells
+//              so this algorithm would not work
+// NOTE(anas):  we can NOT use the right/left-hand hugging algorithm
+//              since the walls are not guaranteed to be simply-connected
+=> algorithm:
+    - divide into cells (width and height known)
+    // TODO(anas): when does robot change cells?
+    - each cell has a "lifetime" variable
+    - each cell has a "bias" variable
+    // TODO(anas): when is a cell an intersection? (maybe all cells intersections?)
+    => at intersection:
+        - take the first unexplored path based on the bias variable
+    => if dead end reached:
+        - find the nearest smallest lifetime cell with unexplored paths
+        - pathfind to the nearest cell (depth-first search?)
+        - when reached, take the next unexplored path
+    // TODO(anas): how to know when final cell reached?
+    // TODO(anas): what to do when final cell reached?
+
+=> meetups:
+    - saturdays [01:00 - **:**]
+    - mondays   [11:00 - 02:30]
+
+=> dates:
+    - formative: [16/01/25]
+    - final:     [23/01/25]
+    - expo:      [23/01/25]
+
+=> events:
+    - order components   [hamza]             | (17/12)
+    - start on tinkercad [roya, zena, hamza] | (19/12)
+    - start of code      [anas, zena]        | (19~20/12)
+
+=> next meetup TODO:
+    - have a look at the arenas available and decide the robot size accordingly
+    - start on the code
+    - start on the wiring
