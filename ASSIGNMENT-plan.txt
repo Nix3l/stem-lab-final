@@ -4,26 +4,16 @@
     - dont hit walls as much as possible
     - best time to win expo
 
-=> provided:
-    - width, height (of the whole arena)
-    - colour (of line)
-    // TODO(anas): find if width of the path constant
-    // TODO(anas): find what etc means
-    - etc... [*]
-=> not provided:
-    - arena layout
-    // TODO(anas): start and end points given?
-
-=> components:              | N |     | B |
-    - arduino mega 2560 R3  |   |     |   |
-    - breadboard mini 400   |   |     |   |
-    - ultrasonic HC-SR04    | 3 |     |   |
-    - ir sensors            |   | [*] |   |
-    - wheels 30-mm (d)      | 2 |     |   |
-    - battery 12v           |   |     |   |
-    - h-bridge              |   |     |   |
-    - dc motor              | 2 |     |   |
-    - wires                 |   |     |   |
+=> components:
+    - arduino mega 2560 R3
+    - breadboard mini 400
+    - ultrasonic HC-SR04
+    - ir sensors
+    - wheels 30-mm (d)
+    - battery 12v
+    - h-bridge
+    - dc motor
+    - wires
 
 => layout: [flat]
     => BACK:
@@ -31,7 +21,6 @@
         - ir sensor
         - battery [*]
     => MIDDLE:
-        // TODO(anas): decide the chasis material
         - chasis made of __
         - components inside
     => FRONT:
@@ -41,8 +30,6 @@
     - wheels move in opposite direction when turning CW/CCW
     - wheels move in same direction when moving forward
 
-// NOTE(anas):  we can NOT use the right/left-hand hugging algorithm
-//              since the walls are not guaranteed to be simply-connected
 => algorithm:
     => arena is represented as intersections and paths
         -> intersection:
@@ -51,11 +38,9 @@
             - age
         -> path:
             - 2 intersections
-            // TODO(anas): unit of length?
             - flags (explored/not, vertical/horizontal, dead ends, etc..)
             - length
             - width
-            // TODO(anas): is this even possible?
             - bias
     => at intersection:
         - take the first unexplored path based on the bias variable
@@ -64,8 +49,6 @@
         - find the nearest smallest age intersection with unexplored paths
         - pathfind to the nearest intersection (depth-first search?)
         - when intersection reached, take the next unexplored path
-    // TODO(anas): how to know when end is reached?
-    // TODO(anas): what to do when end is reached?
 
 => meetups:
     - saturdays [01:00 - **:**]
@@ -75,13 +58,3 @@
     - formative: [16/01/25]
     - final:     [23/01/25]
     - expo:      [23/01/25]
-
-=> events:
-    - order components   [hamza]             | (17/12)
-    - start on tinkercad [roya, zena, hamza] | (19/12)
-    - start of code      [anas, zena]        | (19~20/12)
-
-=> next meetup TODO:
-    - have a look at the arenas available and decide the robot size accordingly
-    - start on the code
-    - start on the wiring
