@@ -6,17 +6,16 @@ In3 = 4
 In4 = 3
 
 Ultrasonic sensors :
+    *Middle : 
+    Trigger : 11
+    Echo : 10
+     
+    *Left:
+    Trigger : 13
+    Echo : 12
 
-*Middle : 
-Trigger : 11
-Echo : 10
- 
-*Left:
-Trigger : 13
-Echo : 12
-
-*Right :
-Trigger : 9
-Echo : 8
+    *Right :
+    Trigger : 9
+    Echo : 8
 
 IR_Sensor : 7
