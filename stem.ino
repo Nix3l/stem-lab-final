@@ -48,6 +48,9 @@ typedef enum {
     DIR_LEFT    = 3,
 } dir_s;
 
+// TODO(anas): cardinal to relative and relative to cardinal dir
+
+// pins
 typedef struct {
     u8 motor_right_enable;
     u8 motor_left_enable;
@@ -67,6 +70,7 @@ typedef struct {
     u8 ir_in;
 } pins_s;
 
+// sensor interaces
 typedef struct {
     u16 enable_pin;
 
@@ -87,6 +91,7 @@ typedef struct {
     f32 val;
 } ir_s;
 
+// robot
 typedef struct {
     ultrasonic_s left_us;
     ultrasonic_s front_us;
@@ -97,8 +102,11 @@ typedef struct {
     motor_s right_wheel;
     motor_s left_wheel;
     u8 speed;
+
+    cardinal_dir_s dir;
 } robot_s;
 
+// global state
 typedef struct {
     u32 elapsed_time;
 
@@ -106,6 +114,7 @@ typedef struct {
     u16 first_free_path;
 } state_s;
 
+// arena
 typedef struct {
     u16 handle;
     u16 paths[4];
@@ -126,6 +135,7 @@ typedef struct {
 } path_s;
 
 // GLOBAL VARIABLES
+// NOTE(anas): this is stored in the flash memory as to not waste ram
 const PROGMEM pins_s pins = (pins_s) {
     .motor_right_enable     = 0,
     .motor_left_enable      = 1,
@@ -148,8 +158,8 @@ const PROGMEM pins_s pins = (pins_s) {
 path_s          paths[MAX_PATHS] = {0};
 intersection_s  intersections[MAX_INTERSECTIONS] = {0};
 
-state_s state;
-robot_s robot;
+state_s state = {0};
+robot_s robot = {0};
 
 // INITIALIZATION
 void init_pins() {
@@ -179,7 +189,7 @@ void init_state() {
 }
 
 void init_robot() {
-
+    // TODO(anas): init all interfaces
 }
 
 void setup() {
@@ -208,7 +218,10 @@ intersection_s* create_intersection() {
     return inter;
 }
 
+// SENSOR INTERFACES
+// TODO(anas)
+
 // EXECUTION LOOP
 void loop() {
-
+    // TODO(anas): start on the algorithm
 }

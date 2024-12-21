@@ -78,10 +78,9 @@
 
 => events:
     - order components   [hamza]             | (17/12)
-    - start on tinkercad [roya, zena, hamza] | (19/12)
-    - start of code      [anas, zena]        | (19~20/12)
+    - start on tinkercad [roya, zena, hamza] | (18/12)
+    - start of code      [anas, zena]        | (21/12)
+    - start of wiring    [roya, zena, hamza] | (21/12)
 
 => next meetup TODO:
     - have a look at the arenas available and decide the robot size accordingly
-    - start on the code
-    - start on the wiring
