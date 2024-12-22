@@ -1,21 +1,22 @@
-enb = 0
-ena = 2
-In1 = 5
-In2 = 6
-In3 = 4
-In4 = 3
+=> RIGHT WHEEL
+    - enb = 0
+    - In3 = 4
+    - In4 = 3
 
-Ultrasonic sensors :
-    *Middle : 
-    Trigger : 11
-    Echo : 10
-     
-    *Left:
-    Trigger : 13
-    Echo : 12
+=> LEFT WHEEL
+    - ena = 2
+    - In1 = 5
+    - In2 = 6
 
-    *Right :
-    Trigger : 9
-    Echo : 8
+=> ULTRASONIC SENSORS
+    => MIDDLE
+        - Trigger: 11
+        - Echo:    10
+    => Left
+        - Trigger: 13
+        - Echo:    12
+    => Right
+        - Trigger: 9
+        - Echo:    8
 
-IR_Sensor : 7
+=> IR SENSOR: 7
