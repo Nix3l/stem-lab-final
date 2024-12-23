@@ -17,9 +17,13 @@
 //          float: 4 bytes
 // -------------------------
 
+// NOTE(anas): ALL time is in microseconds
+
 // MACROS
 #define MAX_INTERSECTIONS   (128)
 #define MAX_PATHS           (128)
+
+#define ULTRASONIC_DELAY    (5)
 
 // DATA TYPES
 typedef char i8;
@@ -32,25 +36,20 @@ typedef float f32;
 typedef enum {
     ROT_CW  = 0,
     ROT_ACW = 1,
-} rotation_s;
-
-typedef enum {
-    DIR_NORTH   = 0,
-    DIR_EAST    = 1,
-    DIR_SOUTH   = 2,
-    DIR_WEST    = 3,
-} cardinal_dir_s;
+} rotation_t;
 
 typedef enum {
     DIR_FORWARD = 0,
     DIR_RIGHT   = 1,
     DIR_BACK    = 2,
     DIR_LEFT    = 3,
-} dir_s;
+} dir_t;
 
 // TODO(anas): cardinal to relative and relative to cardinal dir
 
 // pins
+// NOTE(anas): right motor -> A
+//             left  motor -> B
 typedef struct {
     u8 motor_right_enable;
     u8 motor_left_enable;
@@ -72,23 +71,24 @@ typedef struct {
 
 // sensor interaces
 typedef struct {
-    u16 enable_pin;
+    u16 enable;
+    u16 in1;
+    u16 in2;
 
-    u16 input1;
-    u16 input2;
+    rotation_t rot;
 } motor_s;
 
 typedef struct {
     u16 trigger;
     u16 echo;
 
-    f32 val;
+    u32 trigger_time;
+    f32 dist;
 } ultrasonic_s;
 
 typedef struct {
     u16 pin;
-
-    f32 val;
+    u8 val;
 } ir_s;
 
 // robot
@@ -103,7 +103,7 @@ typedef struct {
     motor_s left_wheel;
     u8 speed;
 
-    cardinal_dir_s dir;
+    dir_t dir;
 } robot_s;
 
 // global state
@@ -147,8 +147,10 @@ const PROGMEM pins_s pins = (pins_s) {
 
     .us_left_trigger        = 13,
     .us_left_echo           = 12,
+
     .us_forward_trigger     = 11,
     .us_forward_echo        = 10,
+
     .us_right_trigger       = 9,
     .us_right_echo          = 8,
 
@@ -172,11 +174,11 @@ void init_pins() {
     pinMode(pins.motor_left_in2,     OUTPUT);
 
     pinMode(pins.us_left_trigger,    OUTPUT);
-    pinMode(pins.us_left_echo,       OUTPUT);
+    pinMode(pins.us_left_echo,       INPUT);
     pinMode(pins.us_forward_trigger, OUTPUT);
-    pinMode(pins.us_forward_echo,    OUTPUT);
+    pinMode(pins.us_forward_echo,    INPUT);
     pinMode(pins.us_right_trigger,   OUTPUT);
-    pinMode(pins.us_right_echo,      OUTPUT);
+    pinMode(pins.us_right_echo,      INPUT);
 
     pinMode(pins.ir_in, INPUT);
 }
@@ -189,7 +191,23 @@ void init_state() {
 }
 
 void init_robot() {
-    // TODO(anas): init all interfaces
+    robot.left_us.trigger = pins.us_left_trigger;
+    robot.front_us.trigger = pins.us_forward_trigger;
+    robot.right_us.trigger = pins.us_right_trigger;
+    robot.left_us.echo = pins.us_left_echo;
+    robot.front_us.echo = pins.us_forward_echo;
+    robot.right_us.echo = pins.us_right_echo;
+    robot.right_wheel.enable = pins.motor_right_enable;
+    robot.left_wheel.enable = pins.motor_left_enable;
+    robot.right_wheel.in1 = pins.motor_right_in1;
+    robot.right_wheel.in2 = pins.motor_right_in2;
+    robot.left_wheel.in1 = pins.motor_left_in1;
+    robot.left_wheel.in2 = pins.motor_left_in2;
+    robot.ir.pin = pins.ir_in;
+    robot.speed = 255;
+    robot.dir = DIR_LEFT;
+    robot.right_wheel.rot = ROT_CW;
+    robot.left_wheel.rot = ROT_ACW;
 }
 
 void setup() {
@@ -219,9 +237,70 @@ intersection_s* create_intersection() {
 }
 
 // SENSOR INTERFACES
-// TODO(anas)
+void ultrasonic_update(ultrasonic_s* sensor) {
+    if(state.elapsed_time >= sensor->trigger_time + ULTRASONIC_DELAY) {
+        digitalWrite(sensor->trigger, LOW);
+        u32 duration = pulseIn(sensor->echo, HIGH);
+        sensor->dist = duration * 0.034f / 2.0f;
+
+        digitalWrite(sensor->trigger, HIGH);
+        sensor->trigger_time = state.elapsed_time;
+    }
+}
+
+void motor_set_direction(motor_s* motor) {
+    if(motor->rot == ROT_CW) {
+        digitalWrite(motor->in1, HIGH);
+        digitalWrite(motor->in2, LOW);
+    } else {
+        digitalWrite(motor->in1, LOW);
+        digitalWrite(motor->in2, HIGH);  
+    }
+}
+
+void motor_set_speed(motor_s* motor) {
+    // TODO(anas): convert motor speed to RPM
+    analogWrite(motor->enable, robot.speed);
+}
+
+void infrared_get(ir_s* sensor) {
+    sensor->val = digitalRead(sensor->pin);
+}
+
+void log_robot_state() {
+    Serial.println(F("Ultrasonic:"));
+    Serial.print(F("Left: "));
+    Serial.println(robot.left_us.dist);
+    Serial.print(F("Front: "));
+    Serial.println(robot.front_us.dist);
+    Serial.print(F("Right: "));
+    Serial.println(robot.right_us.dist);
+    Serial.println(F("-----------"));
+    Serial.println(F("Motor: "));
+    Serial.print(F("Speed: "));
+    Serial.println(robot.speed);
+    Serial.print(F("Right"));
+    Serial.println(robot.right_wheel.rot);
+    Serial.print(F("Left"));
+    Serial.println(robot.left_wheel.rot);
+    Serial.println(F("-----------"));
+    Serial.print(F("IR: "));
+    Serial.println(robot.ir.val);
+    Serial.println(F("-----------"));
+}
 
 // EXECUTION LOOP
 void loop() {
-    // TODO(anas): start on the algorithm
+    // update the global state
+    state.elapsed_time = micros();
+
+    // update the sensor interfaces
+    ultrasonic_update(&robot.left_us);
+    ultrasonic_update(&robot.front_us);
+    ultrasonic_update(&robot.right_us);
+    motor_set_direction(&robot.left_wheel);
+    motor_set_direction(&robot.right_wheel);
+    infrared_get(&robot.ir);
+
+    log_robot_state();
 }
