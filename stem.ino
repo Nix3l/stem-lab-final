@@ -4,6 +4,7 @@
 // USEFUL RESOURCES: -------
 //  - https://docs.arduino.cc/learn/programming/memory-guide/
 //  - https://docs.arduino.cc/language-reference/
+//  - https://arduino-doc.readthedocs.io/en/stable/3.Arduino%20Projects/8.Ultrasonic%20Sensor/
 // -------------------------
 
 // DATA TYPE SIZES ---------
@@ -81,7 +82,6 @@ typedef struct {
     u16 trigger;
     u16 echo;
 
-    u32 trigger_time;
     f32 dist;
 } ultrasonic_s;
 
@@ -232,7 +232,7 @@ intersection_s* create_intersection() {
 // TODO(anas): TEST
 void ultrasonic_update(ultrasonic_s* sensor) {
     // ok so i think i understood this wrong when i first wrote it
-    // after some lookup, it seems the ultrasonic sends out pulses of 40kHz sound waves
+    // after some lookup, it seems the ultrasonic sends out pulses of 37kHz sound waves
     // while it is set to HIGH, so delays are necessary
     digitalWrite(sensor->trigger, HIGH);
     // according to sensor specifications this should be 10
