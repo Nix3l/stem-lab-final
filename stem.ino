@@ -3,7 +3,7 @@
 
 // USEFUL RESOURCES: -------
 //  - https://docs.arduino.cc/learn/programming/memory-guide/
-//  - https://docs.arduino.cc/language-reference/en/functions/time/micros/
+//  - https://docs.arduino.cc/language-reference/
 // -------------------------
 
 // DATA TYPE SIZES ---------
@@ -17,13 +17,36 @@
 //          float: 4 bytes
 // -------------------------
 
-// NOTE(anas): ALL time is in microseconds
+// UNITS -------------------
+// - time: us
+// - distance: cm
+// -------------------------
 
 // MACROS
 #define MAX_INTERSECTIONS   (128)
 #define MAX_PATHS           (128)
 
-#define ULTRASONIC_DELAY    (5)
+// pins
+// NOTE(anas): right motor -> A
+//             left  motor -> B
+#define MOTOR_RIGHT_ENABLE  (0)
+#define MOTOR_LEFT_ENABLE   (1)
+
+#define MOTOR_RIGHT_IN1     (5)
+#define MOTOR_RIGHT_IN2     (6)
+#define MOTOR_LEFT_IN1      (3)
+#define MOTOR_LEFT_IN2      (4)
+
+#define US_LEFT_TRIGGER     (13)
+#define US_LEFT_ECHO        (12)
+
+#define US_FRONT_TRIGGER    (11)
+#define US_FRONT_ECHO       (10)
+
+#define US_RIGHT_TRIGGER    (9)
+#define US_RIGHT_ECHO       (8)
+
+#define IR_IN               (7)
 
 // DATA TYPES
 typedef char i8;
@@ -44,30 +67,6 @@ typedef enum {
     DIR_BACK    = 2,
     DIR_LEFT    = 3,
 } dir_t;
-
-// TODO(anas): cardinal to relative and relative to cardinal dir
-
-// pins
-// NOTE(anas): right motor -> A
-//             left  motor -> B
-typedef struct {
-    u8 motor_right_enable;
-    u8 motor_left_enable;
-
-    u8 motor_right_in1;
-    u8 motor_right_in2;
-    u8 motor_left_in1;
-    u8 motor_left_in2;
-
-    u8 us_left_trigger;
-    u8 us_left_echo;
-    u8 us_forward_trigger;
-    u8 us_forward_echo;
-    u8 us_right_trigger;
-    u8 us_right_echo;
-
-    u8 ir_in;
-} pins_s;
 
 // sensor interaces
 typedef struct {
@@ -93,14 +92,14 @@ typedef struct {
 
 // robot
 typedef struct {
-    ultrasonic_s left_us;
-    ultrasonic_s front_us;
-    ultrasonic_s right_us;
+    ultrasonic_s us_left;
+    ultrasonic_s us_front;
+    ultrasonic_s us_right;
 
     ir_s ir;
 
-    motor_s right_wheel;
-    motor_s left_wheel;
+    motor_s motor_right;
+    motor_s motor_left;
     u8 speed;
 
     dir_t dir;
@@ -108,6 +107,8 @@ typedef struct {
 
 // global state
 typedef struct {
+    // NOTE(anas): will overflow after ~70 minutes
+    //             but shouldnt be a problem
     u32 elapsed_time;
 
     u16 first_free_intersection;
@@ -135,28 +136,6 @@ typedef struct {
 } path_s;
 
 // GLOBAL VARIABLES
-// NOTE(anas): this is stored in the flash memory as to not waste ram
-const PROGMEM pins_s pins = (pins_s) {
-    .motor_right_enable     = 0,
-    .motor_left_enable      = 1,
-
-    .motor_right_in1        = 5,
-    .motor_right_in2        = 6,
-    .motor_left_in1         = 3,
-    .motor_left_in2         = 4,
-
-    .us_left_trigger        = 13,
-    .us_left_echo           = 12,
-
-    .us_forward_trigger     = 11,
-    .us_forward_echo        = 10,
-
-    .us_right_trigger       = 9,
-    .us_right_echo          = 8,
-
-    .ir_in                  = 7,
-};
-
 path_s          paths[MAX_PATHS] = {0};
 intersection_s  intersections[MAX_INTERSECTIONS] = {0};
 
@@ -165,22 +144,28 @@ robot_s robot = {0};
 
 // INITIALIZATION
 void init_pins() {
-    pinMode(pins.motor_right_enable, OUTPUT);
-    pinMode(pins.motor_left_enable,  OUTPUT);
+    // motor enables
+    pinMode(MOTOR_RIGHT_ENABLE, OUTPUT);
+    pinMode(MOTOR_LEFT_ENABLE,  OUTPUT);
 
-    pinMode(pins.motor_right_in1,    OUTPUT);
-    pinMode(pins.motor_right_in2,    OUTPUT);
-    pinMode(pins.motor_left_in1,     OUTPUT);
-    pinMode(pins.motor_left_in2,     OUTPUT);
+    // motor ins
+    pinMode(MOTOR_RIGHT_IN1,    OUTPUT);
+    pinMode(MOTOR_RIGHT_IN2,    OUTPUT);
+    pinMode(MOTOR_LEFT_IN1,     OUTPUT);
+    pinMode(MOTOR_LEFT_IN2,     OUTPUT);
 
-    pinMode(pins.us_left_trigger,    OUTPUT);
-    pinMode(pins.us_left_echo,       INPUT);
-    pinMode(pins.us_forward_trigger, OUTPUT);
-    pinMode(pins.us_forward_echo,    INPUT);
-    pinMode(pins.us_right_trigger,   OUTPUT);
-    pinMode(pins.us_right_echo,      INPUT);
+    // ultrasonic triggers
+    pinMode(US_LEFT_TRIGGER,    OUTPUT);
+    pinMode(US_FRONT_TRIGGER,   OUTPUT);
+    pinMode(US_RIGHT_TRIGGER,   OUTPUT);
 
-    pinMode(pins.ir_in, INPUT);
+    // ultrasonic echos
+    pinMode(US_LEFT_ECHO,       INPUT);
+    pinMode(US_FRONT_ECHO,      INPUT);
+    pinMode(US_RIGHT_ECHO,      INPUT);
+
+    // ir in
+    pinMode(IR_IN, INPUT);
 }
 
 void init_state() {
@@ -191,23 +176,30 @@ void init_state() {
 }
 
 void init_robot() {
-    robot.left_us.trigger = pins.us_left_trigger;
-    robot.front_us.trigger = pins.us_forward_trigger;
-    robot.right_us.trigger = pins.us_right_trigger;
-    robot.left_us.echo = pins.us_left_echo;
-    robot.front_us.echo = pins.us_forward_echo;
-    robot.right_us.echo = pins.us_right_echo;
-    robot.right_wheel.enable = pins.motor_right_enable;
-    robot.left_wheel.enable = pins.motor_left_enable;
-    robot.right_wheel.in1 = pins.motor_right_in1;
-    robot.right_wheel.in2 = pins.motor_right_in2;
-    robot.left_wheel.in1 = pins.motor_left_in1;
-    robot.left_wheel.in2 = pins.motor_left_in2;
-    robot.ir.pin = pins.ir_in;
+    // pins
+    robot.us_left.trigger       = US_LEFT_TRIGGER;
+    robot.us_front.trigger      = US_FRONT_TRIGGER;
+    robot.us_right.trigger      = US_RIGHT_TRIGGER;
+
+    robot.us_left.echo          = US_LEFT_ECHO;
+    robot.us_front.echo         = US_FRONT_ECHO;
+    robot.us_right.echo         = US_RIGHT_ECHO;
+
+    robot.motor_right.enable    = MOTOR_RIGHT_ENABLE;
+    robot.motor_left.enable     = MOTOR_LEFT_ENABLE;
+
+    robot.motor_right.in1       = MOTOR_RIGHT_IN1;
+    robot.motor_right.in2       = MOTOR_RIGHT_IN2;
+    robot.motor_left.in1        = MOTOR_LEFT_IN1;
+    robot.motor_left.in2        = MOTOR_LEFT_IN2;
+
+    robot.ir.pin                = IR_IN;
+
+    // robot parameters
     robot.speed = 255;
-    robot.dir = DIR_LEFT;
-    robot.right_wheel.rot = ROT_CW;
-    robot.left_wheel.rot = ROT_ACW;
+    robot.dir = DIR_FORWARD;
+    robot.motor_right.rot = ROT_CW;
+    robot.motor_left.rot = ROT_ACW;
 }
 
 void setup() {
@@ -221,7 +213,7 @@ void setup() {
 
 // PATHS & INTERSECTIONS
 path_s* create_path() {
-    u16 handle = state.first_free_path;
+    u16 handle = state.first_free_path ++;
     path_s* path = &paths[handle];
     path->handle = handle;
     // TODO(anas): init path
@@ -237,32 +229,45 @@ intersection_s* create_intersection() {
 }
 
 // SENSOR INTERFACES
+// TODO(anas): TEST
 void ultrasonic_update(ultrasonic_s* sensor) {
-    if(state.elapsed_time >= sensor->trigger_time + ULTRASONIC_DELAY) {
-        digitalWrite(sensor->trigger, LOW);
-        u32 duration = pulseIn(sensor->echo, HIGH);
-        sensor->dist = duration * 0.034f / 2.0f;
+    // ok so i think i understood this wrong when i first wrote it
+    // after some lookup, it seems the ultrasonic sends out pulses of 40kHz sound waves
+    // while it is set to HIGH, so delays are necessary
+    digitalWrite(sensor->trigger, HIGH);
+    // according to sensor specifications this should be 10
+    delayMicroseconds(10);
 
-        digitalWrite(sensor->trigger, HIGH);
-        sensor->trigger_time = state.elapsed_time;
-    }
+    digitalWrite(sensor->trigger, LOW);
+    u32 duration = pulseIn(sensor->echo, HIGH);
+    sensor->dist = duration * 0.01715f;
+
+    // keep the trigger at LOW for 1 microsecond
+    // to ensure the next cycle is a clean high
+    // from tested sources it takes 4us for it to fully go back to LOW
+    // NOTE(anas): this *could* be removed, if we know that the rest of the program
+    //             takes ~4us to execute but that would be risky
+    delayMicroseconds(4);
 }
 
+// TODO(anas): TEST
 void motor_set_direction(motor_s* motor) {
     if(motor->rot == ROT_CW) {
         digitalWrite(motor->in1, HIGH);
         digitalWrite(motor->in2, LOW);
     } else {
         digitalWrite(motor->in1, LOW);
-        digitalWrite(motor->in2, HIGH);  
+        digitalWrite(motor->in2, HIGH);
     }
 }
 
+// TODO(anas): TEST
 void motor_set_speed(motor_s* motor) {
     // TODO(anas): convert motor speed to RPM
     analogWrite(motor->enable, robot.speed);
 }
 
+// TODO(anas): TEST
 void infrared_get(ir_s* sensor) {
     sensor->val = digitalRead(sensor->pin);
 }
@@ -270,23 +275,27 @@ void infrared_get(ir_s* sensor) {
 void log_robot_state() {
     Serial.println(F("Ultrasonic:"));
     Serial.print(F("Left: "));
-    Serial.println(robot.left_us.dist);
+    Serial.println(robot.us_left.dist);
     Serial.print(F("Front: "));
-    Serial.println(robot.front_us.dist);
+    Serial.println(robot.us_front.dist);
     Serial.print(F("Right: "));
-    Serial.println(robot.right_us.dist);
+    Serial.println(robot.us_right.dist);
     Serial.println(F("-----------"));
+
+    /*
     Serial.println(F("Motor: "));
     Serial.print(F("Speed: "));
     Serial.println(robot.speed);
-    Serial.print(F("Right"));
-    Serial.println(robot.right_wheel.rot);
-    Serial.print(F("Left"));
-    Serial.println(robot.left_wheel.rot);
+    Serial.print(F("Right: "));
+    Serial.println(robot.motor_right.rot);
+    Serial.print(F("Left: "));
+    Serial.println(robot.motor_left.rot);
     Serial.println(F("-----------"));
+
     Serial.print(F("IR: "));
     Serial.println(robot.ir.val);
     Serial.println(F("-----------"));
+    */
 }
 
 // EXECUTION LOOP
@@ -295,11 +304,13 @@ void loop() {
     state.elapsed_time = micros();
 
     // update the sensor interfaces
-    ultrasonic_update(&robot.left_us);
-    ultrasonic_update(&robot.front_us);
-    ultrasonic_update(&robot.right_us);
-    motor_set_direction(&robot.left_wheel);
-    motor_set_direction(&robot.right_wheel);
+    ultrasonic_update(&robot.us_left);
+    ultrasonic_update(&robot.us_front);
+    ultrasonic_update(&robot.us_right);
+    motor_set_direction(&robot.motor_left);
+    motor_set_direction(&robot.motor_right);
+    motor_set_speed(&robot.motor_left);
+    motor_set_speed(&robot.motor_right);
     infrared_get(&robot.ir);
 
     log_robot_state();

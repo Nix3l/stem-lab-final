@@ -51,7 +51,6 @@
             - age
         -> path:
             - 2 intersections
-            // TODO(anas): unit of length?
             - flags (explored/not, vertical/horizontal, dead ends, etc..)
             - length
             - width
@@ -77,13 +76,15 @@
     - expo:      [23/01/25]
 
 => events:
-    - order components   [hamza]             | (17/12)
-    - start on tinkercad [roya, zena, hamza] | (18/12)
-    - start of code      [anas, zena]        | (21/12)
-    - start of wiring    [roya, zena, hamza] | (21/12)
-    - submitted plan     [anas]              | (22/12)
+    - order components      [hamza]             | (17/12)
+    - start on tinkercad    [hamza]             | (18/12)
+    - start of code         [zena, anas]        | (21/12)
+    - start of wiring       [roya, zena, hamza] | (21/12)
+    - submitted plan        [anas]              | (22/12)
+    - wired up all sensors  [roya, zena, hamza] | (23/12)
+    - sensor input code     [zena, anas]        | (23/12)
 
 => next meetup TODO:
-    - have a look at the arenas available and decide the robot size accordingly
+    - fix the sensor inputs
     - start on the robot moving code
     - finalise the first iteration of the robot
