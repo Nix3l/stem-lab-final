@@ -30,13 +30,13 @@
 // pins
 // NOTE(anas): right motor -> A
 //             left  motor -> B
-#define MOTOR_RIGHT_ENABLE  (0)
-#define MOTOR_LEFT_ENABLE   (1)
+#define MOTOR_RIGHT_ENABLE  (7)
+#define MOTOR_LEFT_ENABLE   (2)
 
 #define MOTOR_RIGHT_IN1     (5)
 #define MOTOR_RIGHT_IN2     (6)
-#define MOTOR_LEFT_IN1      (3)
-#define MOTOR_LEFT_IN2      (4)
+#define MOTOR_LEFT_IN1      (4)
+#define MOTOR_LEFT_IN2      (3)
 
 #define US_LEFT_TRIGGER     (13)
 #define US_LEFT_ECHO        (12)
@@ -47,7 +47,7 @@
 #define US_RIGHT_TRIGGER    (9)
 #define US_RIGHT_ECHO       (8)
 
-#define IR_IN               (7)
+#define IR_IN               (0)
 
 // DATA TYPES
 typedef char i8;
@@ -56,6 +56,11 @@ typedef int i16;
 typedef unsigned long u32;
 typedef long i32;
 typedef float f32;
+
+// MATH
+f32 lerpf(f32 a, f32 b, f32 t) {
+    return a + t * (b - a);
+}
 
 typedef enum {
     ROT_CW  = 0,
@@ -69,12 +74,32 @@ typedef enum {
     DIR_LEFT    = 3,
 } dir_t;
 
+typedef enum {
+    DIR_NORTH   = 0,
+    DIR_EAST    = 1,
+    DIR_SOUTH   = 2,
+    DIR_WEST    = 3,
+} cardinal_t;
+
+cardinal_t relative_to_cardinal(cardinal_t forward, dir_t dir) {
+    return (forward + dir) % 4;
+}
+
+typedef enum {
+    MOVE_STILL      = 0,
+    MOVE_FORWARD    = 1,
+    MOVE_BACK       = 2,
+    MOVE_TURN_RIGHT = 3,
+    MOVE_TURN_LEFT  = 4,
+} movement_t;
+
 // sensor interaces
 typedef struct {
     u16 enable;
     u16 in1;
     u16 in2;
 
+    boolean running;
     rotation_t rot;
 } motor_s;
 
@@ -87,7 +112,8 @@ typedef struct {
 
 typedef struct {
     u16 pin;
-    u8 val;
+    u8 val; // 0 when white object
+            // 1 when black object
 } ir_s;
 
 // robot
@@ -101,8 +127,12 @@ typedef struct {
     motor_s motor_right;
     motor_s motor_left;
     u8 speed;
+    f32 rot_speed;
 
-    dir_t dir;
+    cardinal_t dir;
+
+    boolean turning;
+    movement_t movement;
 } robot_s;
 
 // global state
@@ -111,18 +141,42 @@ typedef struct {
     //             but shouldnt be a problem
     u32 elapsed_time;
 
+    u16 curr_inter;
+    u16 curr_path;
+
     u16 first_free_intersection;
     u16 first_free_path;
 } state_s;
 
 // arena
+enum {
+    INTER_NONE              = (0x00),
+    INTER_FULLY_EXPLORED    = (0x01),
+    INTER_UP_PATH           = (0x02),
+    INTER_RIGHT_PATH        = (0x04),
+    INTER_DOWN_PATH         = (0x08),
+    INTER_LEFT_PATH         = (0x10),
+};
+
+#define NO_INTERSECTION (-1)
+
 typedef struct {
     u16 handle;
-    u16 paths[4];
+    u16 paths[4]; // indices go clockwise
     u8 flags;
 
+    // TODO(anas): is this actually needed?
     u8 age;
 } intersection_s;
+
+#define NO_PATH (-1)
+
+enum {
+    PATH_NONE           = (0x00),
+    PATH_EXPLORED       = (0x01),
+    PATH_ORIENTATION    = (0x02), // 1 is vertical, 0 is horizontal
+    PATH_HAS_DEAD_END   = (0x04),
+};
 
 typedef struct {
     u16 handle;
@@ -171,6 +225,9 @@ void init_pins() {
 void init_state() {
     state.elapsed_time = 0.0f;
 
+    state.curr_inter = NO_INTERSECTION;
+    state.curr_path  = NO_PATH;
+
     state.first_free_intersection = 0;
     state.first_free_path = 0;
 }
@@ -196,10 +253,14 @@ void init_robot() {
     robot.ir.pin                = IR_IN;
 
     // robot parameters
-    robot.speed = 255;
-    robot.dir = DIR_FORWARD;
-    robot.motor_right.rot = ROT_CW;
-    robot.motor_left.rot = ROT_ACW;
+    robot.speed = 64;
+    robot.dir = DIR_NORTH;
+    robot.movement = MOVE_STILL;
+
+    robot.motor_right.rot = ROT_ACW;
+    robot.motor_left.rot = ROT_CW;
+    robot.motor_right.running = true;
+    robot.motor_left.running = true;
 }
 
 void setup() {
@@ -215,8 +276,16 @@ void setup() {
 path_s* create_path() {
     u16 handle = state.first_free_path ++;
     path_s* path = &paths[handle];
+
     path->handle = handle;
-    // TODO(anas): init path
+    path->flags = PATH_NONE;
+    path->intersections[0] = NO_INTERSECTION;
+    path->intersections[1] = NO_INTERSECTION;
+
+    path->length = 0.0f;
+    path->width = 0.0f;
+    path->bias = 0;
+
     return path;
 }
 
@@ -224,12 +293,39 @@ intersection_s* create_intersection() {
     u16 handle = state.first_free_intersection ++;
     intersection_s* inter = &intersections[handle];
     inter->handle = handle;
-    // TODO(anas): init intersection
+
+    inter->paths[0] = NO_PATH;
+    inter->paths[1] = NO_PATH;
+    inter->paths[2] = NO_PATH;
+    inter->paths[3] = NO_PATH;
+
+    inter->flags = INTER_NONE;
+    inter->age = 0;
+
     return inter;
 }
 
+#define MIN_PATH_DIST (8.0f)
+
+void intersection_sense_path(intersection_s* inter, ultrasonic_s* sensor, cardinal_t dir) {
+    if(inter->paths[dir] != NO_PATH) return;
+
+    if(sensor->dist >= MIN_PATH_DIST) {
+        path_s* path = create_path();
+        inter->paths[dir] = path->handle;
+
+        if(dir == DIR_NORTH || dir == DIR_SOUTH) path->flags |= PATH_ORIENTATION;
+        else path->flags &= ~PATH_ORIENTATION;
+    }
+}
+
+void intersection_sense_available_paths(intersection_s* inter) {
+    intersection_sense_path(inter, &robot.us_left,  relative_to_cardinal(robot.dir, DIR_LEFT));
+    intersection_sense_path(inter, &robot.us_front, relative_to_cardinal(robot.dir, DIR_FORWARD));
+    intersection_sense_path(inter, &robot.us_right, relative_to_cardinal(robot.dir, DIR_RIGHT));
+}
+
 // SENSOR INTERFACES
-// TODO(anas): TEST
 void ultrasonic_update(ultrasonic_s* sensor) {
     // ok so i think i understood this wrong when i first wrote it
     // after some lookup, it seems the ultrasonic sends out pulses of 37kHz sound waves
@@ -240,7 +336,7 @@ void ultrasonic_update(ultrasonic_s* sensor) {
 
     digitalWrite(sensor->trigger, LOW);
     u32 duration = pulseIn(sensor->echo, HIGH);
-    sensor->dist = duration * 0.01715f;
+    sensor->dist = duration * 0.0170145f;
 
     // keep the trigger at LOW for 1 microsecond
     // to ensure the next cycle is a clean high
@@ -250,8 +346,7 @@ void ultrasonic_update(ultrasonic_s* sensor) {
     delayMicroseconds(4);
 }
 
-// TODO(anas): TEST
-void motor_set_direction(motor_s* motor) {
+void motor_update(motor_s* motor) {
     if(motor->rot == ROT_CW) {
         digitalWrite(motor->in1, HIGH);
         digitalWrite(motor->in2, LOW);
@@ -259,20 +354,17 @@ void motor_set_direction(motor_s* motor) {
         digitalWrite(motor->in1, LOW);
         digitalWrite(motor->in2, HIGH);
     }
+
+    analogWrite(motor->enable, motor->running ? robot.speed : 0);
 }
 
-// TODO(anas): TEST
-void motor_set_speed(motor_s* motor) {
-    // TODO(anas): convert motor speed to RPM
-    analogWrite(motor->enable, robot.speed);
-}
-
-// TODO(anas): TEST
-void infrared_get(ir_s* sensor) {
+void infrared_update(ir_s* sensor) {
     sensor->val = digitalRead(sensor->pin);
 }
 
+// ROBOT STATE
 void log_robot_state() {
+    /*
     Serial.println(F("Ultrasonic:"));
     Serial.print(F("Left: "));
     Serial.println(robot.us_left.dist);
@@ -281,6 +373,7 @@ void log_robot_state() {
     Serial.print(F("Right: "));
     Serial.println(robot.us_right.dist);
     Serial.println(F("-----------"));
+    */
 
     /*
     Serial.println(F("Motor: "));
@@ -291,11 +384,58 @@ void log_robot_state() {
     Serial.print(F("Left: "));
     Serial.println(robot.motor_left.rot);
     Serial.println(F("-----------"));
+    */
 
+    /*
     Serial.print(F("IR: "));
     Serial.println(robot.ir.val);
     Serial.println(F("-----------"));
     */
+}
+
+void robot_update_motors() {
+    motor_update(&robot.motor_right);
+    motor_update(&robot.motor_left);
+}
+
+void robot_set_movement(movement_t move) {
+    robot.motor_right.running = move != MOVE_STILL;
+    robot.motor_left.running = move != MOVE_STILL;
+
+    if(move == MOVE_FORWARD) {
+        robot.motor_right.rot = ROT_ACW;
+        robot.motor_left.rot = ROT_ACW;
+    } else if(move == MOVE_BACK) {
+        robot.motor_right.rot = ROT_CW;
+        robot.motor_left.rot = ROT_CW;
+    } else if(move == MOVE_TURN_RIGHT) {
+        robot.motor_right.rot = ROT_CW;
+        robot.motor_left.rot = ROT_ACW;
+    } else if(move == MOVE_TURN_LEFT) {
+        robot.motor_right.rot = ROT_ACW;
+        robot.motor_left.rot = ROT_CW;
+    }
+
+    robot_update_motors();
+}
+
+// TODO(anas): measure this
+#define ROT_RADIUS      (6.5f)
+#define WHEEL_DIAMETER  (6.5f)
+
+// angle in radians
+f32 robot_get_turn_delay(f32 angle) {
+    f32 velocity = (WHEEL_DIAMETER / 60.0f) * lerpf(95.0f, 175.0f, robot.speed / 255.0f);
+    f32 distance = angle * ROT_RADIUS;
+    return distance / velocity;
+}
+
+void robot_turn(movement_t move) {
+    if(move != MOVE_TURN_RIGHT && move != MOVE_TURN_LEFT) return;
+    robot.turning = true;
+    robot_set_movement(move);
+    delay(robot_get_turn_delay(90.0f));
+    robot_set_movement(MOVE_STILL);
 }
 
 // EXECUTION LOOP
@@ -307,11 +447,10 @@ void loop() {
     ultrasonic_update(&robot.us_left);
     ultrasonic_update(&robot.us_front);
     ultrasonic_update(&robot.us_right);
-    motor_set_direction(&robot.motor_left);
-    motor_set_direction(&robot.motor_right);
-    motor_set_speed(&robot.motor_left);
-    motor_set_speed(&robot.motor_right);
-    infrared_get(&robot.ir);
+    robot_update_motors();
+    infrared_update(&robot.ir);
 
-    log_robot_state();
+    robot_turn(MOVE_TURN_RIGHT);
+
+    // log_robot_state();
 }
