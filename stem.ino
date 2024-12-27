@@ -26,6 +26,10 @@
 #include "stem.h"
 
 // HELPER FUNCTIONS
+f32 lerpf(f32 a, f32 b, f32 t) {
+    return a + t * (b - a);
+}
+
 cardinal_t relative_to_cardinal(cardinal_t forward, dir_t dir) {
     return (forward + dir) % 4;
 }

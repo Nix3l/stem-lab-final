@@ -38,11 +38,6 @@ typedef unsigned long u32;
 typedef long i32;
 typedef float f32;
 
-// MATH
-f32 lerpf(f32 a, f32 b, f32 t) {
-    return a + t * (b - a);
-}
-
 typedef enum {
     ROT_CW  = 0,
     ROT_ACW = 1,
@@ -70,7 +65,7 @@ typedef enum {
     MOVE_TURN_LEFT  = 4,
 } movement_t;
 
-// sensor interaces
+// SENSOR INTERFACES
 typedef struct {
     u16 enable;
     u16 in1;
@@ -93,7 +88,7 @@ typedef struct {
             // 1 when black object
 } ir_s;
 
-// robot
+// ROBOT
 typedef struct {
     ultrasonic_s us_left;
     ultrasonic_s us_front;
@@ -112,7 +107,7 @@ typedef struct {
     movement_t movement;
 } robot_s;
 
-// global state
+// GLOBAL STATE
 typedef struct {
     // NOTE(anas): will overflow after ~70 minutes
     //             but shouldnt be a problem
@@ -125,7 +120,7 @@ typedef struct {
     u16 first_free_path;
 } state_s;
 
-// arena
+// ARENA
 enum {
     INTER_NONE              = (0x00),
     INTER_FULLY_EXPLORED    = (0x01),
@@ -139,7 +134,7 @@ enum {
 
 typedef struct {
     u16 handle;
-    u16 paths[4]; // indices go clockwise
+    u16 paths[4]; // indices go clockwise, north first
     u8 flags;
 
     // TODO(anas): is this actually needed?
