@@ -83,8 +83,8 @@
     - submitted plan        [anas]              | (22/12)
     - wired up all sensors  [roya, zena, hamza] | (23/12)
     - sensor input code     [zena, anas]        | (23/12)
+    - start of movement     [zena, anas]        | (25/12)
 
 => next meetup TODO:
-    - fix the sensor inputs
-    - start on the robot moving code
+    - get the turning code working
     - finalise the first iteration of the robot
