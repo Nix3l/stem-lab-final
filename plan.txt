@@ -87,4 +87,3 @@
 
 => next meetup TODO:
     - get the turning code working
-    - finalise the first iteration of the robot

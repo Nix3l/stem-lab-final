@@ -5,6 +5,9 @@
 // hamza, zena, roya, anas
 
 // MACROS
+#define PI   (3.14159265358979323f)
+#define PI_2 (1.570796327f)
+
 #define MAX_INTERSECTIONS   (128)
 #define MAX_PATHS           (128)
 
@@ -28,7 +31,7 @@
 #define US_RIGHT_TRIGGER    (9)
 #define US_RIGHT_ECHO       (8)
 
-#define IR_IN               (0)
+#define IR_IN               (22)
 
 // DATA TYPES
 typedef char i8;

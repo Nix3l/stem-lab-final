@@ -264,22 +264,11 @@ void robot_set_movement(movement_t move) {
     robot_update_motors();
 }
 
-// TODO(anas): measure this
-#define ROT_RADIUS      (6.5f)
-#define WHEEL_DIAMETER  (6.5f)
-
-// angle in radians
-f32 robot_get_turn_delay(f32 angle) {
-    f32 velocity = (WHEEL_DIAMETER / 60.0f) * lerpf(95.0f, 175.0f, robot.speed / 255.0f);
-    f32 distance = angle * ROT_RADIUS;
-    return distance / velocity;
-}
-
 void robot_turn(movement_t move) {
     if(move != MOVE_TURN_RIGHT && move != MOVE_TURN_LEFT) return;
     robot.turning = true;
     robot_set_movement(move);
-    delay(robot_get_turn_delay(90.0f));
+    delay(102.0f * 255.0f / robot.speed);
     robot_set_movement(MOVE_STILL);
 }
 
@@ -296,6 +285,7 @@ void loop() {
     infrared_update(&robot.ir);
 
     robot_turn(MOVE_TURN_RIGHT);
+    delay(500);
 
     // log_robot_state();
 }
