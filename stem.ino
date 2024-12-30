@@ -23,6 +23,8 @@
 // - distance: cm
 // -------------------------
 
+// NOTE(anas): width of path is always 20cm
+
 #include "stem.h"
 
 // HELPER FUNCTIONS
@@ -68,10 +70,18 @@ void init_pins() {
 }
 
 void init_state() {
-    state.elapsed_time = 0.0f;
+    state.elapsed_time = 0;
+
+    state.task = AT_INTERSECTION;
 
     state.curr_inter = NO_INTERSECTION;
     state.curr_path  = NO_PATH;
+
+    state.goal_inter = NO_INTERSECTION;
+
+    state.last_us_left = 0.0f;
+    state.last_us_front = 0.0f;
+    state.last_us_right = 0.0f;
 
     state.first_free_intersection = 0;
     state.first_free_path = 0;
@@ -98,7 +108,7 @@ void init_robot() {
     robot.ir.pin                = IR_IN;
 
     // robot parameters
-    robot.speed = 64;
+    robot.speed = 255;
     robot.dir = DIR_NORTH;
     robot.movement = MOVE_STILL;
 
@@ -115,6 +125,8 @@ void setup() {
 
     init_state();
     init_robot();
+
+    intersection_s* inter = create_intersection();
 }
 
 // PATHS & INTERSECTIONS
@@ -126,10 +138,6 @@ path_s* create_path() {
     path->flags = PATH_NONE;
     path->intersections[0] = NO_INTERSECTION;
     path->intersections[1] = NO_INTERSECTION;
-
-    path->length = 0.0f;
-    path->width = 0.0f;
-    path->bias = 0;
 
     return path;
 }
@@ -145,29 +153,110 @@ intersection_s* create_intersection() {
     inter->paths[3] = NO_PATH;
 
     inter->flags = INTER_NONE;
-    inter->age = 0;
 
     return inter;
 }
 
 #define MIN_PATH_DIST (8.0f)
 
-void intersection_sense_path(intersection_s* inter, ultrasonic_s* sensor, cardinal_t dir) {
+void intersection_detect_path(intersection_s* inter, ultrasonic_s* sensor, cardinal_t dir) {
     if(inter->paths[dir] != NO_PATH) return;
 
     if(sensor->dist >= MIN_PATH_DIST) {
         path_s* path = create_path();
+
         inter->paths[dir] = path->handle;
+        inter->flags |= INTER_UP_PATH << dir;
+
+        path->intersections[0] = inter->handle;
 
         if(dir == DIR_NORTH || dir == DIR_SOUTH) path->flags |= PATH_ORIENTATION;
         else path->flags &= ~PATH_ORIENTATION;
     }
 }
 
-void intersection_sense_available_paths(intersection_s* inter) {
-    intersection_sense_path(inter, &robot.us_left,  relative_to_cardinal(robot.dir, DIR_LEFT));
-    intersection_sense_path(inter, &robot.us_front, relative_to_cardinal(robot.dir, DIR_FORWARD));
-    intersection_sense_path(inter, &robot.us_right, relative_to_cardinal(robot.dir, DIR_RIGHT));
+void intersection_detect_available_paths(intersection_s* inter) {
+    intersection_detect_path(inter, &robot.us_left,  relative_to_cardinal(robot.dir, DIR_LEFT));
+    intersection_detect_path(inter, &robot.us_front, relative_to_cardinal(robot.dir, DIR_FORWARD));
+    intersection_detect_path(inter, &robot.us_right, relative_to_cardinal(robot.dir, DIR_RIGHT));
+}
+
+void face_path(path_s* path, cardinal_t dir) {
+    // face the robot towards the paths direction
+    i8 diff = robot.dir - dir;
+    if(diff > 0) robot_turn(diff > 0 ? MOVE_TURN_LEFT : MOVE_TURN_RIGHT, abs(diff));
+
+    // set the robot to go along the path next execution cycle
+    state.task = ALONG_PATH;
+    state.curr_path = path->handle;
+    state.curr_inter = NO_INTERSECTION;
+}
+
+void intersection_choose_path(intersection_s* inter) {
+    if(inter->flags & INTER_FULLY_EXPLORED) {
+        // TODO(anas): pathfind to nearest lowest age intersection
+        return;
+    }
+
+    for(i8 i = 0; i < 4; i ++) {
+        if(inter->paths[i] == NO_PATH) continue;
+
+        if(inter->flags & INTER_UP_PATH && !(paths[inter->paths[i]].flags & PATH_EXPLORED))
+            face_path(&paths[inter->paths[i]], i);
+    }
+}
+
+void path_detect_dead_end(path_s* path) {
+    bool dead_end_reached = false;
+
+    if(robot.us_left.dist  <= MIN_PATH_DIST &&
+       robot.us_front.dist <= MIN_PATH_DIST &&
+       robot.us_right.dist <= MIN_PATH_DIST &&) dead_end_reached = true;
+
+    if(dead_end_reached) {
+        path->flags |= PATH_HAS_DEAD_END;
+        path->intersections[1] = NO_INTERSECTION;
+
+        robot_turn(MOVE_TURN_RIGHT, 2);
+        state.goal_inter = path->intersections[0];
+    }
+}
+
+void path_detect_intersection(path_s* path) {
+    bool intersection_reached = false;
+
+    // if current readings are greater than the path distance, then intersection reached
+    if(robot.us_left.dist  >= MIN_PATH_DIST ||
+       robot.us_right.dist >= MIN_PATH_DIST) intersection_reached = true;
+
+    if(!intersection_reached) return;
+
+    if(state.goal_inter != NO_INTERSECTION) {
+        state.curr_inter = state.goal_inter;
+        state.goal_inter = NO_INTERSECTION;
+
+        state.task = AT_INTERSECTION;
+        return;
+    }
+
+    intersection_s* inter = create_intersection();
+
+    // the path would be in the opposite direction the robot is facing for the intersection
+    cardinal_t dir = (robot.dir + 2) % 4;
+    inter->paths[dir] = path->handle;
+    inter->flags |= INTER_UP_PATH << dir;
+
+    // this would always be the second intersection
+    path->intersections[1] = inter->handle;
+
+    // path is now explored
+    path->flags |= PATH_EXPLORED;
+
+    // update global state
+    state.curr_inter = inter->handle;
+    state.task = AT_INTERSECTION;
+
+    // TODO(anas): figure out how to go to middle of intersection
 }
 
 // SENSOR INTERFACES
@@ -264,11 +353,14 @@ void robot_set_movement(movement_t move) {
     robot_update_motors();
 }
 
-void robot_turn(movement_t move) {
+void robot_turn(movement_t move, u8 turns) {
     if(move != MOVE_TURN_RIGHT && move != MOVE_TURN_LEFT) return;
     robot.turning = true;
     robot_set_movement(move);
-    delay(102.0f * 255.0f / robot.speed);
+
+    delay(turns * 102.0f * 255.0f / robot.speed);
+
+    robot.turning = false;
     robot_set_movement(MOVE_STILL);
 }
 
@@ -284,8 +376,17 @@ void loop() {
     robot_update_motors();
     infrared_update(&robot.ir);
 
-    robot_turn(MOVE_TURN_RIGHT);
-    delay(500);
+    if(state.task == AT_INTERSECTION) {
+        intersection_choose_path(&intersections[state.curr_inter]);
+    } else if(state.task == ALONG_PATH) {
+        robot_set_movement(MOVE_FORWARD);
+        path_detect_dead_end(&paths[state.curr_path]);
+        path_detect_intersection(&paths[state.curr_path]);
+    }
 
     // log_robot_state();
+
+    state.last_us_left = robot.us_left.dist;
+    state.last_us_front = robot.us_front.dist;
+    state.last_us_right = robot.us_right.dist;
 }

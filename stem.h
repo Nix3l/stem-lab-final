@@ -102,7 +102,6 @@ typedef struct {
     motor_s motor_right;
     motor_s motor_left;
     u8 speed;
-    f32 rot_speed;
 
     cardinal_t dir;
 
@@ -111,13 +110,25 @@ typedef struct {
 } robot_s;
 
 // GLOBAL STATE
+typedef enum {
+    AT_INTERSECTION = 0,
+    ALONG_PATH      = 1,
+} task_t;
+
 typedef struct {
     // NOTE(anas): will overflow after ~70 minutes
     //             but shouldnt be a problem
     u32 elapsed_time;
 
+    task_t task;
     u16 curr_inter;
     u16 curr_path;
+
+    u16 goal_inter;
+
+    f32 last_us_left;
+    f32 last_us_front;
+    f32 last_us_right;
 
     u16 first_free_intersection;
     u16 first_free_path;
@@ -136,12 +147,9 @@ enum {
 #define NO_INTERSECTION (-1)
 
 typedef struct {
-    u16 handle;
+    u16 handle; // index in intersections array
     u16 paths[4]; // indices go clockwise, north first
     u8 flags;
-
-    // TODO(anas): is this actually needed?
-    u8 age;
 } intersection_s;
 
 #define NO_PATH (-1)
@@ -154,14 +162,9 @@ enum {
 };
 
 typedef struct {
-    u16 handle;
+    u16 handle; // index in paths array
     u16 intersections[2];
     u8 flags;
-
-    f32 length;
-    f32 width;
-
-    u8 bias;
 } path_s;
 
 #endif
