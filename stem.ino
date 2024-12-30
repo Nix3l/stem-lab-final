@@ -25,6 +25,10 @@
 
 // NOTE(anas): width of path is always 20cm
 
+// TODO(anas): create the initial path
+// TODO(anas): pathfinding
+// TODO(anas): how to get to middle of intersection
+
 #include "stem.h"
 
 // HELPER FUNCTIONS
@@ -79,7 +83,7 @@ void init_state() {
 
     state.goal_inter = NO_INTERSECTION;
 
-    state.last_us_left = 0.0f;
+    state.last_us_left  = 0.0f;
     state.last_us_front = 0.0f;
     state.last_us_right = 0.0f;
 
@@ -126,6 +130,7 @@ void setup() {
     init_state();
     init_robot();
 
+    // create the first intersection
     intersection_s* inter = create_intersection();
 }
 
