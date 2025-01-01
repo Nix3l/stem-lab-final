@@ -11,6 +11,8 @@
 #define MAX_INTERSECTIONS   (128)
 #define MAX_PATHS           (128)
 
+#define MIN_PATH_DIST       (8.0f)
+
 // pins
 // NOTE(anas): right motor -> A
 //             left  motor -> B
@@ -46,6 +48,9 @@ typedef enum {
     ROT_ACW = 1,
 } rotation_t;
 
+// NOTE(anas): directions are defined in clockwise order
+//             which lets us do some tricks with for loops
+//             and arithmetic that makes handling rotations easier
 typedef enum {
     DIR_FORWARD = 0,
     DIR_RIGHT   = 1,
@@ -147,7 +152,7 @@ enum {
 #define NO_INTERSECTION (-1)
 
 typedef struct {
-    u16 handle; // index in intersections array
+    u16 handle;   // index in intersections array
     u16 paths[4]; // indices go clockwise, north first
     u8 flags;
 } intersection_s;

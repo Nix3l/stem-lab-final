@@ -23,6 +23,35 @@
 // - distance: cm
 // -------------------------
 
+// BRIEF EXPLANATION OF THE ALGORITHM ------------
+//  => so the arena is represented in memory as a graph of intersections connected via paths
+//
+//  => each intersection can have 4 possible paths: north, east, south, and west
+//  => each path is bounded either one or two intersections, depending on whether it ends at a dead end or not
+//     but a path could never have two dead ends
+//
+//  => the idea here is to "learn" the arena as the robot goes, keeping track of which paths and intersections have been explored
+//     as to not go back into paths that have already been explored
+//
+//  => an intersection is detected whenever there is a sudden change in the distances
+//     read from the ultrasonic sensors at the front of the robot
+//  => every intersection has an "age" value, which is indicative of how long the intersection has been known for
+//
+//  => the robot moves along the path it is currently in until it reaches a dead end, or an intersection
+//        if a dead end is reached, path find back to the youngest intersection with unexplored paths
+//        if an intersection is reached, choose the first unexplored path available and move along it
+//
+//  => this is essentially just a depth-first search algorithm thats a bit more complicated because of the physical nature of it
+//  => its also important to keep in mind that the representation of the arena in memory is entirely logical, and does not represent
+//     any actual physical values or lengths
+//
+//  => its almost like a blind person trying to navigate around with a walking stick
+//     and keeping track of where he is in his mind. but like, a robot.
+//
+//  => note that using algorithms like the left/right wall hugging algorithm is not possible
+//     here since the walls are not simply connected
+// -----------------------------------------------
+
 // NOTE(anas): width of path is always 20cm
 
 // TODO(anas): create the initial path
@@ -130,138 +159,7 @@ void setup() {
     init_state();
     init_robot();
 
-    // create the first intersection
-    intersection_s* inter = create_intersection();
-}
-
-// PATHS & INTERSECTIONS
-path_s* create_path() {
-    u16 handle = state.first_free_path ++;
-    path_s* path = &paths[handle];
-
-    path->handle = handle;
-    path->flags = PATH_NONE;
-    path->intersections[0] = NO_INTERSECTION;
-    path->intersections[1] = NO_INTERSECTION;
-
-    return path;
-}
-
-intersection_s* create_intersection() {
-    u16 handle = state.first_free_intersection ++;
-    intersection_s* inter = &intersections[handle];
-    inter->handle = handle;
-
-    inter->paths[0] = NO_PATH;
-    inter->paths[1] = NO_PATH;
-    inter->paths[2] = NO_PATH;
-    inter->paths[3] = NO_PATH;
-
-    inter->flags = INTER_NONE;
-
-    return inter;
-}
-
-#define MIN_PATH_DIST (8.0f)
-
-void intersection_detect_path(intersection_s* inter, ultrasonic_s* sensor, cardinal_t dir) {
-    if(inter->paths[dir] != NO_PATH) return;
-
-    if(sensor->dist >= MIN_PATH_DIST) {
-        path_s* path = create_path();
-
-        inter->paths[dir] = path->handle;
-        inter->flags |= INTER_UP_PATH << dir;
-
-        path->intersections[0] = inter->handle;
-
-        if(dir == DIR_NORTH || dir == DIR_SOUTH) path->flags |= PATH_ORIENTATION;
-        else path->flags &= ~PATH_ORIENTATION;
-    }
-}
-
-void intersection_detect_available_paths(intersection_s* inter) {
-    intersection_detect_path(inter, &robot.us_left,  relative_to_cardinal(robot.dir, DIR_LEFT));
-    intersection_detect_path(inter, &robot.us_front, relative_to_cardinal(robot.dir, DIR_FORWARD));
-    intersection_detect_path(inter, &robot.us_right, relative_to_cardinal(robot.dir, DIR_RIGHT));
-}
-
-void face_path(path_s* path, cardinal_t dir) {
-    // face the robot towards the paths direction
-    i8 diff = robot.dir - dir;
-    if(diff > 0) robot_turn(diff > 0 ? MOVE_TURN_LEFT : MOVE_TURN_RIGHT, abs(diff));
-
-    // set the robot to go along the path next execution cycle
-    state.task = ALONG_PATH;
-    state.curr_path = path->handle;
-    state.curr_inter = NO_INTERSECTION;
-}
-
-void intersection_choose_path(intersection_s* inter) {
-    if(inter->flags & INTER_FULLY_EXPLORED) {
-        // TODO(anas): pathfind to nearest lowest age intersection
-        return;
-    }
-
-    for(i8 i = 0; i < 4; i ++) {
-        if(inter->paths[i] == NO_PATH) continue;
-
-        if(inter->flags & INTER_UP_PATH && !(paths[inter->paths[i]].flags & PATH_EXPLORED))
-            face_path(&paths[inter->paths[i]], i);
-    }
-}
-
-void path_detect_dead_end(path_s* path) {
-    bool dead_end_reached = false;
-
-    if(robot.us_left.dist  <= MIN_PATH_DIST &&
-       robot.us_front.dist <= MIN_PATH_DIST &&
-       robot.us_right.dist <= MIN_PATH_DIST &&) dead_end_reached = true;
-
-    if(dead_end_reached) {
-        path->flags |= PATH_HAS_DEAD_END;
-        path->intersections[1] = NO_INTERSECTION;
-
-        robot_turn(MOVE_TURN_RIGHT, 2);
-        state.goal_inter = path->intersections[0];
-    }
-}
-
-void path_detect_intersection(path_s* path) {
-    bool intersection_reached = false;
-
-    // if current readings are greater than the path distance, then intersection reached
-    if(robot.us_left.dist  >= MIN_PATH_DIST ||
-       robot.us_right.dist >= MIN_PATH_DIST) intersection_reached = true;
-
-    if(!intersection_reached) return;
-
-    if(state.goal_inter != NO_INTERSECTION) {
-        state.curr_inter = state.goal_inter;
-        state.goal_inter = NO_INTERSECTION;
-
-        state.task = AT_INTERSECTION;
-        return;
-    }
-
-    intersection_s* inter = create_intersection();
-
-    // the path would be in the opposite direction the robot is facing for the intersection
-    cardinal_t dir = (robot.dir + 2) % 4;
-    inter->paths[dir] = path->handle;
-    inter->flags |= INTER_UP_PATH << dir;
-
-    // this would always be the second intersection
-    path->intersections[1] = inter->handle;
-
-    // path is now explored
-    path->flags |= PATH_EXPLORED;
-
-    // update global state
-    state.curr_inter = inter->handle;
-    state.task = AT_INTERSECTION;
-
-    // TODO(anas): figure out how to go to middle of intersection
+    // TODO(anas): create the first path to move along
 }
 
 // SENSOR INTERFACES
@@ -363,10 +261,157 @@ void robot_turn(movement_t move, u8 turns) {
     robot.turning = true;
     robot_set_movement(move);
 
+    // after testing, we found 102ms to be the approximate time needed
+    // for the robot to do a 90 degree turn at max speed
+    // its not exact but its good enough
     delay(turns * 102.0f * 255.0f / robot.speed);
 
     robot.turning = false;
     robot_set_movement(MOVE_STILL);
+}
+
+// PATHS & INTERSECTIONS
+path_s* create_path() {
+    u16 handle = state.first_free_path ++;
+    path_s* path = &paths[handle];
+
+    path->handle = handle;
+    path->flags = PATH_NONE;
+    path->intersections[0] = NO_INTERSECTION;
+    path->intersections[1] = NO_INTERSECTION;
+
+    return path;
+}
+
+intersection_s* create_intersection() {
+    u16 handle = state.first_free_intersection ++;
+    intersection_s* inter = &intersections[handle];
+    inter->handle = handle;
+
+    inter->paths[0] = NO_PATH;
+    inter->paths[1] = NO_PATH;
+    inter->paths[2] = NO_PATH;
+    inter->paths[3] = NO_PATH;
+
+    inter->flags = INTER_NONE;
+
+    return inter;
+}
+
+void intersection_detect_path(intersection_s* inter, ultrasonic_s* sensor, cardinal_t dir) {
+    // if there already is a known path in the given direction, skip
+    if(inter->paths[dir] != NO_PATH) return;
+
+    if(sensor->dist >= MIN_PATH_DIST) {
+        path_s* path = create_path();
+
+        inter->paths[dir] = path->handle;
+        inter->flags |= INTER_UP_PATH << dir;
+
+        path->intersections[0] = inter->handle;
+
+        // set the orientation of the path (horizontal/vertical)
+        if(dir == DIR_NORTH || dir == DIR_SOUTH) path->flags |= PATH_ORIENTATION;
+        else path->flags &= ~PATH_ORIENTATION;
+    }
+}
+
+void intersection_detect_available_paths(intersection_s* inter) {
+    intersection_detect_path(inter, &robot.us_left,  relative_to_cardinal(robot.dir, DIR_LEFT));
+    intersection_detect_path(inter, &robot.us_front, relative_to_cardinal(robot.dir, DIR_FORWARD));
+    intersection_detect_path(inter, &robot.us_right, relative_to_cardinal(robot.dir, DIR_RIGHT));
+}
+
+void face_path(path_s* path, cardinal_t dir) {
+    // face the robot towards the paths direction
+    i8 diff = robot.dir - dir;
+    if(diff != 0) robot_turn(diff > 0 ? MOVE_TURN_LEFT : MOVE_TURN_RIGHT, abs(diff));
+
+    // set the robot to go along the path next execution cycle
+    state.task = ALONG_PATH;
+    state.curr_path = path->handle;
+    state.curr_inter = NO_INTERSECTION;
+}
+
+void intersection_choose_path(intersection_s* inter) {
+    if(inter->flags & INTER_FULLY_EXPLORED) {
+        // TODO(anas): pathfind to nearest lowest age intersection
+        return;
+    }
+
+    // for every direction
+    for(i8 i = 0; i < 4; i ++) {
+        // if there is no path, skip
+        if(inter->paths[i] == NO_PATH) continue;
+
+        // if the path exists and its not explored, face the path and start moving along it
+        if(inter->flags & (INTER_UP_PATH << i) && !(paths[inter->paths[i]].flags & PATH_EXPLORED)) {
+            face_path(&paths[inter->paths[i]], i);
+            break;
+        }
+    }
+}
+
+// TODO(anas): path_explored_callback(path_s* path);
+
+void path_detect_dead_end(path_s* path) {
+    bool dead_end_reached = false;
+
+    // if all ultrasonic sensors show a wall, then dead end reached
+    if(robot.us_left.dist  <= MIN_PATH_DIST &&
+       robot.us_front.dist <= MIN_PATH_DIST &&
+       robot.us_right.dist <= MIN_PATH_DIST) dead_end_reached = true;
+
+    if(dead_end_reached) {
+        // flag the path as a dead end
+        // path is also now fully explored
+        path->flags |= PATH_HAS_DEAD_END | PATH_EXPLORED;
+        path->intersections[1] = NO_INTERSECTION;
+
+        // turn back
+        // technically doesnt have to be right but it doesnt matter
+        robot_turn(MOVE_TURN_RIGHT, 2);
+        // make the goal of the robot the last intersection we were at
+        state.goal_inter = path->intersections[0];
+    }
+}
+
+void path_detect_intersection(path_s* path) {
+    bool intersection_reached = false;
+
+    // if current readings are greater than the path distance, then intersection reached
+    if(robot.us_left.dist  >= MIN_PATH_DIST ||
+       robot.us_right.dist >= MIN_PATH_DIST) intersection_reached = true;
+
+    if(!intersection_reached) return;
+
+    if(state.goal_inter != NO_INTERSECTION) {
+        // goal reached, so clear goal
+        state.curr_inter = state.goal_inter;
+        state.goal_inter = NO_INTERSECTION;
+
+        state.task = AT_INTERSECTION;
+        return;
+    }
+
+    intersection_s* inter = create_intersection();
+
+    // the path would be in the opposite direction the robot is facing for the intersection
+    cardinal_t dir = (robot.dir + 2) % 4;
+    inter->paths[dir] = path->handle;
+    inter->flags |= INTER_UP_PATH << dir;
+
+    // this would always be the second intersection
+    path->intersections[1] = inter->handle;
+
+    // path is now explored
+    path->flags |= PATH_EXPLORED;
+
+    // update global state
+    state.curr_inter = inter->handle;
+    state.task = AT_INTERSECTION;
+
+    // TODO(anas): figure out how to go to middle of intersection
 }
 
 // EXECUTION LOOP
@@ -381,9 +426,12 @@ void loop() {
     robot_update_motors();
     infrared_update(&robot.ir);
 
+    // run the algorithm logic
     if(state.task == AT_INTERSECTION) {
+        // if we are at an intersection, choose the first unexplored path and go down it
         intersection_choose_path(&intersections[state.curr_inter]);
     } else if(state.task == ALONG_PATH) {
+        // if we are at a path, keep moving forward until either a dead end or intersection is reached
         robot_set_movement(MOVE_FORWARD);
         path_detect_dead_end(&paths[state.curr_path]);
         path_detect_intersection(&paths[state.curr_path]);

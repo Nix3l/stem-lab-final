@@ -84,6 +84,9 @@
     - wired up all sensors  [roya, zena, hamza] | (23/12)
     - sensor input code     [zena, anas]        | (23/12)
     - start of movement     [zena, anas]        | (25/12)
+    - robot turning         [roya, zena, anas]  | (28/12)
+    - robot design changes  [hamza]             | (28/12)
+    - arena learning logic  [zena, anas]        | (30/12)
 
 => next meetup TODO:
-    - get the turning code working
+    - start testing on arena
