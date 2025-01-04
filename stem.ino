@@ -54,7 +54,7 @@
 
 // NOTE(anas): width of path is always 20cm
 
-// TODO(anas): create the initial path
+// TODO(anas): create the initial intersection 
 // TODO(anas): pathfinding
 // TODO(anas): how to get to middle of intersection
 
@@ -142,6 +142,7 @@ void init_robot() {
 
     // robot parameters
     robot.speed = 255;
+    robot.rot_speed = 255;
     robot.dir = DIR_NORTH;
     robot.movement = MOVE_STILL;
 
@@ -149,6 +150,14 @@ void init_robot() {
     robot.motor_left.rot = ROT_CW;
     robot.motor_right.running = true;
     robot.motor_left.running = true;
+}
+
+void create_initial_intersection() {
+    intersection_s* inter = create_intersection();
+    intersection_detect_available_paths(inter);
+
+    state.task = AT_INTERSECTION;
+    state.curr_inter = inter->handle;
 }
 
 void setup() {
@@ -159,7 +168,7 @@ void setup() {
     init_state();
     init_robot();
 
-    // TODO(anas): create the first path to move along
+    create_initial_intersection();
 }
 
 // SENSOR INTERFACES
@@ -192,7 +201,12 @@ void motor_update(motor_s* motor) {
         digitalWrite(motor->in2, HIGH);
     }
 
-    analogWrite(motor->enable, motor->running ? robot.speed : 0);
+    if(!motor->running)
+        analogWrite(motor->enable, 0);
+    else if(robot.turning)
+        analogWrite(motor->enable, robot.rot_speed);
+    else
+        analogWrite(motor->enable, robot.speed);
 }
 
 void infrared_update(ir_s* sensor) {
@@ -201,7 +215,6 @@ void infrared_update(ir_s* sensor) {
 
 // ROBOT STATE
 void log_robot_state() {
-    /*
     Serial.println(F("Ultrasonic:"));
     Serial.print(F("Left: "));
     Serial.println(robot.us_left.dist);
@@ -210,7 +223,6 @@ void log_robot_state() {
     Serial.print(F("Right: "));
     Serial.println(robot.us_right.dist);
     Serial.println(F("-----------"));
-    */
 
     /*
     Serial.println(F("Motor: "));
@@ -264,7 +276,7 @@ void robot_turn(movement_t move, u8 turns) {
     // after testing, we found 102ms to be the approximate time needed
     // for the robot to do a 90 degree turn at max speed
     // its not exact but its good enough
-    delay(turns * 102.0f * 255.0f / robot.speed);
+    delay(turns * 102.0f * 255.0f / robot.rot_speed);
 
     robot.turning = false;
     robot_set_movement(MOVE_STILL);
@@ -302,6 +314,7 @@ void intersection_detect_path(intersection_s* inter, ultrasonic_s* sensor, cardi
     // if there already is a known path in the given direction, skip
     if(inter->paths[dir] != NO_PATH) return;
 
+    Serial.println(sensor->dist);
     if(sensor->dist >= MIN_PATH_DIST) {
         path_s* path = create_path();
 
@@ -338,6 +351,16 @@ void intersection_choose_path(intersection_s* inter) {
         // TODO(anas): pathfind to nearest lowest age intersection
         return;
     }
+
+    /*
+    Serial.print(inter->paths[0]);
+    Serial.print(" ");
+    Serial.print(inter->paths[1]);
+    Serial.print(" ");
+    Serial.print(inter->paths[2]);
+    Serial.print(" ");
+    Serial.println(inter->paths[3]);
+    */
 
     // for every direction
     for(i8 i = 0; i < 4; i ++) {
@@ -414,6 +437,8 @@ void path_detect_intersection(path_s* path) {
     // TODO(anas): figure out how to go to middle of intersection
 }
 
+i8 a = 0;
+
 // EXECUTION LOOP
 void loop() {
     // update the global state
@@ -426,18 +451,34 @@ void loop() {
     robot_update_motors();
     infrared_update(&robot.ir);
 
+    /*
     // run the algorithm logic
     if(state.task == AT_INTERSECTION) {
+        intersection_detect_available_paths(&intersections[state.curr_inter]);
         // if we are at an intersection, choose the first unexplored path and go down it
         intersection_choose_path(&intersections[state.curr_inter]);
     } else if(state.task == ALONG_PATH) {
-        // if we are at a path, keep moving forward until either a dead end or intersection is reached
+       // if we are at a path, keep moving forward until either a dead end or intersection is reached
         robot_set_movement(MOVE_FORWARD);
         path_detect_dead_end(&paths[state.curr_path]);
         path_detect_intersection(&paths[state.curr_path]);
     }
+    */
 
     // log_robot_state();
+    // delay(200);
+
+    /*
+    robot_turn(MOVE_TURN_RIGHT, 1);
+    delay(500);
+    */
+
+    if(a == 0) {
+        robot_set_movement(MOVE_FORWARD);
+        delay(100);
+        robot_set_movement(MOVE_STILL);
+        a = 1;
+    }
 
     state.last_us_left = robot.us_left.dist;
     state.last_us_front = robot.us_front.dist;

@@ -4,6 +4,15 @@
 // MAZE RUNNERS
 // hamza, zena, roya, anas
 
+// NOTE: the reason that i had to make a separate header file
+//       is because of the stupid decisions made by the arduino IDE devs
+//       they (for some reason) generate function prototypes
+//       before sending the code to the compiler
+//       and ALL function prototypes are generated above the first declared function,
+//       so if you had a function declared above a typedef or macro,
+//       then the compiler will complain about the type/macro not being defined
+//       thank you arduino IDE devs very cool
+
 // MACROS
 #define PI   (3.14159265358979323f)
 #define PI_2 (1.570796327f)
@@ -11,7 +20,7 @@
 #define MAX_INTERSECTIONS   (128)
 #define MAX_PATHS           (128)
 
-#define MIN_PATH_DIST       (8.0f)
+#define MIN_PATH_DIST       (6.0f)
 
 // pins
 // NOTE(anas): right motor -> A
@@ -106,7 +115,9 @@ typedef struct {
 
     motor_s motor_right;
     motor_s motor_left;
-    u8 speed;
+
+    u8 speed;     // speed when moving forward/backward
+    u8 rot_speed; // speed when turning
 
     cardinal_t dir;
 
