@@ -14,15 +14,10 @@
 //       thank you arduino IDE devs very cool
 
 // MACROS
-#define PI   (3.14159265358979323f)
-#define PI_2 (1.570796327f)
+#define MIN_TURN_DIST (6.0f)
+#define MIN_WALL_DIST (6.0f)
 
-#define MAX_INTERSECTIONS   (128)
-#define MAX_PATHS           (128)
-
-#define MIN_PATH_DIST       (6.0f)
-
-// pins
+// PINS
 // NOTE(anas): right motor -> A
 //             left  motor -> B
 #define MOTOR_RIGHT_ENABLE  (7)
@@ -124,63 +119,5 @@ typedef struct {
     boolean turning;
     movement_t movement;
 } robot_s;
-
-// GLOBAL STATE
-typedef enum {
-    AT_INTERSECTION = 0,
-    ALONG_PATH      = 1,
-} task_t;
-
-typedef struct {
-    // NOTE(anas): will overflow after ~70 minutes
-    //             but shouldnt be a problem
-    u32 elapsed_time;
-
-    task_t task;
-    u16 curr_inter;
-    u16 curr_path;
-
-    u16 goal_inter;
-
-    f32 last_us_left;
-    f32 last_us_front;
-    f32 last_us_right;
-
-    u16 first_free_intersection;
-    u16 first_free_path;
-} state_s;
-
-// ARENA
-enum {
-    INTER_NONE              = (0x00),
-    INTER_FULLY_EXPLORED    = (0x01),
-    INTER_UP_PATH           = (0x02),
-    INTER_RIGHT_PATH        = (0x04),
-    INTER_DOWN_PATH         = (0x08),
-    INTER_LEFT_PATH         = (0x10),
-};
-
-#define NO_INTERSECTION (-1)
-
-typedef struct {
-    u16 handle;   // index in intersections array
-    u16 paths[4]; // indices go clockwise, north first
-    u8 flags;
-} intersection_s;
-
-#define NO_PATH (-1)
-
-enum {
-    PATH_NONE           = (0x00),
-    PATH_EXPLORED       = (0x01),
-    PATH_ORIENTATION    = (0x02), // 1 is vertical, 0 is horizontal
-    PATH_HAS_DEAD_END   = (0x04),
-};
-
-typedef struct {
-    u16 handle; // index in paths array
-    u16 intersections[2];
-    u8 flags;
-} path_s;
 
 #endif
