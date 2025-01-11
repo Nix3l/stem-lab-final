@@ -89,4 +89,7 @@
     - arena learning logic  [zena, anas]        | (30/12)
 
 => next meetup TODO:
-    - start testing on arena
+    - make sure the batteries are fully charged 
+    - test the turning code isolated
+    - test the straight moving code 
+    - test the path

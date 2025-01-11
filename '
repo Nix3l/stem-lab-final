@@ -77,7 +77,7 @@ void init_robot() {
     robot.motor_left.in2        = MOTOR_LEFT_IN2;
 
     // robot parameters
-    robot.speed = 70;
+    robot.speed = 55;
     robot.parent_rot_speed = 255;
     robot.child_rot_speed = 128;
     robot.movement = MOVE_STILL;
@@ -112,7 +112,7 @@ void ultrasonic_update(ultrasonic_s* sensor) {
     digitalWrite(sensor->trigger, LOW);
     u32 duration = pulseIn(sensor->echo, HIGH);
     sensor->dist = duration * 0.0170145f;
-    // if(sensor->dist > 1000.0f) sensor->dist = 0.0f;
+    if(sensor->dist > 1000.0f) sensor->dist = 0.0f;
 
     // keep the trigger at LOW for 1 microsecond
     // to ensure the next cycle is a clean high
