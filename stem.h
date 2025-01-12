@@ -14,8 +14,11 @@
 //       thank you arduino IDE devs very cool
 
 // MACROS
-#define MIN_TURN_DIST (5.0f)
-#define MIN_WALL_DIST (3.0f)
+#define LERP(_a, _b, _t) ((_a) + t * ((_b) - (_a)))
+
+#define MIN_FRONT_TURN_DIST (2.5f)
+#define MIN_TURN_WALL_DIST  (8.0f)
+#define US_WALL_DIST        (7.5f)
 
 // PINS
 // NOTE(anas): right motor -> A
@@ -37,7 +40,7 @@
 #define US_RIGHT_TRIGGER    (9)
 #define US_RIGHT_ECHO       (8)
 
-#define MOTOR_K             (35)
+#define MOTOR_K             (30)
 
 // DATA TYPES
 typedef char i8;
@@ -87,7 +90,8 @@ typedef struct {
     motor_s motor_right;
     motor_s motor_left;
 
-    u8 speed;
+    u8 base_speed;
+    u8 max_speed;
     u8 parent_rot_speed; 
     u8 child_rot_speed;
 
