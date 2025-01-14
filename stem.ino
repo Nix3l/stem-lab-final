@@ -28,6 +28,7 @@
 #include "stem.h"
 
 // GLOBAL VARIABLES
+boolean turned = false;
 robot_s robot = {0};
 
 // INITIALIZATION
@@ -72,10 +73,11 @@ void init_robot() {
     robot.motor_left.in2        = MOTOR_LEFT_IN2;
 
     // robot parameters
-    robot.base_speed = 70;
-    robot.max_speed = 200;
-    robot.parent_rot_speed = 180;
-    robot.child_rot_speed = 90;
+    robot.base_speed = 255;
+    robot.min_adjust_speed = 128;
+    robot.max_adjust_speed = 255;
+    robot.parent_rot_speed = 255;
+    robot.child_rot_speed = 128;
     robot.movement = MOVE_STILL;
 
     robot.motor_right.rot = ROT_ACW;
@@ -182,24 +184,33 @@ void robot_turn(movement_t move, u8 turns) {
     // after testing, we found 280ms to be the approximate time needed
     // for the robot to do a 90 degree turn
     // its not exact but its good enough
-    delay(turns * 280);
+    delay(turns * TURN_DELAY);
 
     robot.turning = false;
     robot_set_movement(MOVE_STILL);
+
 }
 
 void robot_adjust_speed() {
     if(robot.us_left.dist <= US_WALL_DIST) {
+        /*
         f32 t = (US_WALL_DIST - robot.us_left.dist) / US_WALL_DIST;
-        robot.motor_left.speed = LERP(robot.base_speed, robot.max_speed, t);
-        robot.motor_right.speed = robot.base_speed + MOTOR_K;
+        robot.motor_left.speed = LERP(robot.base_speed, robot.max_adjust_speed, t);
+        */
+
+        robot.motor_left.speed = robot.max_adjust_speed;
+        robot.motor_right.speed = CLAMP(robot.min_adjust_speed + MOTOR_K, 0, 255);
     } else if(robot.us_right.dist <= US_WALL_DIST) {
+        /*
         f32 t = (US_WALL_DIST - robot.us_right.dist) / US_WALL_DIST;
-        robot.motor_right.speed = LERP(robot.base_speed, robot.max_speed, t) + MOTOR_K;
-        robot.motor_left.speed = robot.base_speed;
+        robot.motor_right.speed = LERP(robot.base_speed, robot.max_adjust_speed, t) + MOTOR_K;
+        */
+
+        robot.motor_right.speed = CLAMP(robot.max_adjust_speed + MOTOR_K, 0, 255);
+        robot.motor_left.speed = robot.min_adjust_speed;
     } else {
         robot.motor_left.speed = robot.base_speed;
-        robot.motor_right.speed = robot.base_speed + MOTOR_K;
+        robot.motor_right.speed = CLAMP(robot.base_speed + MOTOR_K, 0, 255);
     }
 }
 
@@ -211,7 +222,7 @@ boolean at_intersection() {
 movement_t detect_robot_movement() {
     if(robot.us_right.dist >= MIN_TURN_WALL_DIST && robot.us_right.dist > robot.us_left.dist) return MOVE_TURN_RIGHT;
     else if(robot.us_left.dist >= MIN_TURN_WALL_DIST && robot.us_left.dist > robot.us_right.dist) return MOVE_TURN_LEFT;
-    else return MOVE_STILL;
+    else return MOVE_FORWARD;
 }
 
 // EXECUTION LOOP
@@ -221,6 +232,7 @@ void loop() {
     ultrasonic_update(&robot.us_front);
     ultrasonic_update(&robot.us_right);
 
+    // adjust robot speed so that it doesnt hit the side walls
     robot_adjust_speed();
     robot_set_movement(MOVE_FORWARD);
 
@@ -229,8 +241,6 @@ void loop() {
         if(movement == MOVE_STILL) robot_set_movement(movement);
         else robot_turn(movement, 1);
     }
-
-    // robot_set_movement(MOVE_FORWARD);
 
     /*
     robot_turn(MOVE_TURN_LEFT, 1);

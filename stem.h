@@ -15,10 +15,14 @@
 
 // MACROS
 #define LERP(_a, _b, _t) ((_a) + t * ((_b) - (_a)))
+#define CLAMP(_x, _min, _max) ((_x) <= (_min) ? (_min) : (_x) >= (_max) ? (_max) : (_x))
 
-#define MIN_FRONT_TURN_DIST (2.5f)
-#define MIN_TURN_WALL_DIST  (8.0f)
-#define US_WALL_DIST        (7.5f)
+#define MIN_FRONT_TURN_DIST (16.0f)
+#define MIN_TURN_WALL_DIST  (10.0f)
+#define US_WALL_DIST        (5.8f)
+
+#define TURN_DELAY          (106)
+#define TURN_COOLDOWN       (500)
 
 // PINS
 // NOTE(anas): right motor -> A
@@ -91,8 +95,9 @@ typedef struct {
     motor_s motor_left;
 
     u8 base_speed;
-    u8 max_speed;
-    u8 parent_rot_speed; 
+    u8 max_adjust_speed;
+    u8 min_adjust_speed;
+    u8 parent_rot_speed;
     u8 child_rot_speed;
 
     boolean turning;
