@@ -17,12 +17,11 @@
 #define LERP(_a, _b, _t) ((_a) + t * ((_b) - (_a)))
 #define CLAMP(_x, _min, _max) ((_x) <= (_min) ? (_min) : (_x) >= (_max) ? (_max) : (_x))
 
-#define MIN_FRONT_TURN_DIST (16.0f)
+#define MIN_FRONT_TURN_DIST (30.0f)
 #define MIN_TURN_WALL_DIST  (10.0f)
-#define US_WALL_DIST        (5.8f)
+#define ADJUST_WALL_DIST    (8.0f)
 
-#define TURN_DELAY          (106)
-#define TURN_COOLDOWN       (500)
+#define TURN_DELAY          (30)
 
 // PINS
 // NOTE(anas): right motor -> A
@@ -44,7 +43,7 @@
 #define US_RIGHT_TRIGGER    (9)
 #define US_RIGHT_ECHO       (8)
 
-#define MOTOR_K             (30)
+#define MOTOR_K             (60)
 
 // DATA TYPES
 typedef char i8;
