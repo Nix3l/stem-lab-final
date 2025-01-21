@@ -72,14 +72,13 @@ void init_robot() {
     robot.motor_left.in2        = MOTOR_LEFT_IN2;
 
     // robot parameters
-    robot.base_speed       = 150;
-    robot.slow_speed       = 100;
+    robot.base_speed       = 70;
 
-    robot.max_adjust_speed = 150;
-    robot.min_adjust_speed = 100;
+    robot.max_adjust_speed = 80;
+    robot.min_adjust_speed = 50;
 
-    robot.parent_rot_speed = 200;
-    robot.child_rot_speed  = 100;
+    robot.parent_rot_speed = 100;
+    robot.child_rot_speed  = 60;
 
     robot.movement = MOVE_STILL;
 
@@ -112,6 +111,7 @@ void ultrasonic_update(ultrasonic_s* sensor) {
     digitalWrite(sensor->trigger, LOW);
     u32 duration = pulseIn(sensor->echo, HIGH);
     sensor->dist = duration * 0.0170145f;
+    if(sensor->dist > 1000) sensor->dist = 0.0f;
 
     // keep the trigger at LOW for 1 microsecond
     // to ensure the next cycle is a clean high
@@ -200,13 +200,8 @@ void robot_adjust_speed() {
         robot.motor_right.speed = CLAMP(robot.max_adjust_speed + MOTOR_K, 0, 255);
         robot.motor_left.speed = robot.min_adjust_speed;
     } else {
-        if(robot.us_front.dist >= MIN_FRONT_SLOW_DIST) {
-            robot.motor_left.speed = robot.base_speed;
-            robot.motor_right.speed = CLAMP(robot.base_speed + MOTOR_K, 0, 255);
-        } else {
-            robot.motor_left.speed = robot.slow_speed;
-            robot.motor_right.speed = CLAMP(robot.slow_speed + MOTOR_K, 0, 255);
-        }
+        robot.motor_left.speed = robot.base_speed;
+        robot.motor_right.speed = CLAMP(robot.base_speed + MOTOR_K, 0, 255);
     }
 }
 
@@ -231,7 +226,7 @@ void loop() {
     // adjust robot speed so that it doesnt hit the side walls
     robot_adjust_speed();
     robot_set_movement(MOVE_FORWARD);
-
+    
     // update the sensor interfaces
     ultrasonic_update(&robot.us_left);
     ultrasonic_update(&robot.us_front);
