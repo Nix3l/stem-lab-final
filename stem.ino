@@ -78,7 +78,7 @@ void init_robot() {
     robot.max_adjust_speed = 150;
     robot.min_adjust_speed = 100;
 
-    robot.parent_rot_speed = 220;
+    robot.parent_rot_speed = 200;
     robot.child_rot_speed  = 100;
 
     robot.movement = MOVE_STILL;
