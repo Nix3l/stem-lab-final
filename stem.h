@@ -17,11 +17,12 @@
 #define LERP(_a, _b, _t) ((_a) + t * ((_b) - (_a)))
 #define CLAMP(_x, _min, _max) ((_x) <= (_min) ? (_min) : (_x) >= (_max) ? (_max) : (_x))
 
-#define MIN_FRONT_TURN_DIST (30.0f)
-#define MIN_TURN_WALL_DIST  (10.0f)
+#define MIN_FRONT_TURN_DIST (45.0f)
+#define MIN_FRONT_SLOW_DIST (20.0f)
+#define MIN_TURN_WALL_DIST  (12.0f)
 #define ADJUST_WALL_DIST    (8.0f)
 
-#define TURN_DELAY          (30)
+#define TURN_DELAY          (5)
 
 // PINS
 // NOTE(anas): right motor -> A
@@ -94,6 +95,7 @@ typedef struct {
     motor_s motor_left;
 
     u8 base_speed;
+    u8 slow_speed;
     u8 max_adjust_speed;
     u8 min_adjust_speed;
     u8 parent_rot_speed;

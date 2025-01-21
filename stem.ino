@@ -73,11 +73,12 @@ void init_robot() {
 
     // robot parameters
     robot.base_speed       = 150;
+    robot.slow_speed       = 100;
 
     robot.max_adjust_speed = 150;
-    robot.min_adjust_speed = 110;
+    robot.min_adjust_speed = 100;
 
-    robot.parent_rot_speed = 180;
+    robot.parent_rot_speed = 220;
     robot.child_rot_speed  = 100;
 
     robot.movement = MOVE_STILL;
@@ -189,7 +190,6 @@ void robot_turn(movement_t move, u8 turns) {
     delay(turns * TURN_DELAY);
 
     robot.turning = false;
-    robot_set_movement(MOVE_STILL);
 }
 
 void robot_adjust_speed() {
@@ -200,8 +200,13 @@ void robot_adjust_speed() {
         robot.motor_right.speed = CLAMP(robot.max_adjust_speed + MOTOR_K, 0, 255);
         robot.motor_left.speed = robot.min_adjust_speed;
     } else {
-        robot.motor_left.speed = robot.base_speed;
-        robot.motor_right.speed = CLAMP(robot.base_speed + MOTOR_K, 0, 255);
+        if(robot.us_front.dist >= MIN_FRONT_SLOW_DIST) {
+            robot.motor_left.speed = robot.base_speed;
+            robot.motor_right.speed = CLAMP(robot.base_speed + MOTOR_K, 0, 255);
+        } else {
+            robot.motor_left.speed = robot.slow_speed;
+            robot.motor_right.speed = CLAMP(robot.slow_speed + MOTOR_K, 0, 255);
+        }
     }
 }
 
@@ -234,8 +239,11 @@ void loop() {
 
     if(at_intersection()) {
         movement_t movement = detect_robot_movement();
+        /*
         if(movement == MOVE_STILL) robot_set_movement(movement);
         else robot_turn(movement, 1);
+        */
+        if(movement != MOVE_STILL) robot_turn(movement, 1);
     }
 
     /*
