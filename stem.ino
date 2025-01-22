@@ -72,9 +72,9 @@ void init_robot() {
     robot.motor_left.in2        = MOTOR_LEFT_IN2;
 
     // robot parameters
-    robot.base_speed       = 70;
+    robot.base_speed       = 90;
 
-    robot.max_adjust_speed = 80;
+    robot.max_adjust_speed = 90;
     robot.min_adjust_speed = 50;
 
     robot.parent_rot_speed = 100;
