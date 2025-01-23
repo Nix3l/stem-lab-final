@@ -17,11 +17,11 @@
 #define LERP(_a, _b, _t) ((_a) + t * ((_b) - (_a)))
 #define CLAMP(_x, _min, _max) ((_x) <= (_min) ? (_min) : (_x) >= (_max) ? (_max) : (_x))
 
-#define MIN_FRONT_TURN_DIST   (15.2f)
+#define MIN_FRONT_TURN_DIST   (16.0f)
 #define MIN_TURN_WALL_DIST    (14.0f)
 #define ADJUST_WALL_DIST      (8.0f)
 
-#define TURN_DELAY            (90)
+#define TURN_DELAY            (80)
 
 // PINS
 // NOTE(anas): right motor -> A
